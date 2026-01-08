@@ -1,6 +1,6 @@
 import io
 
-from lib.fsspecclean.base_fsspecfs import FSpecFS
+from lib.fsspecclean.base_fsspecfs.base_fsspecfs import FSpecFS
 
 class ImagesFs(FSpecFS):
 

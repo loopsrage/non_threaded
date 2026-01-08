@@ -5,15 +5,15 @@ import uuid
 from langchain_core.messages import ToolMessage
 from langchain_ollama import ChatOllama
 
-from lib.fsspecclean import FSpecFS
-from lib.fsspecclean.cleanfs_graph import build_governed_graph
-from lib.fsspecclean.cleanfs_tool_agent import fs_react_agent
+from lib.fsspecclean.cleanfs.cleanfs import CleanFs
+from lib.fsspecclean.cleanfs.cleanfs_graph import build_governed_graph
+from lib.fsspecclean.cleanfs.cleanfs_tool_agent import fs_react_agent
 
 
 class Test(unittest.TestCase):
 
     def test_build_governed_node(self):
-        my_fs = FSpecFS(filesystem="memory")
+        my_fs = CleanFs(filesystem="memory")
         artifacts = []
         all_all_messages = []
         request_ids = []

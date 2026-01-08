@@ -2,7 +2,9 @@ import functools
 import io
 
 import pandas as pd
-from lib.fsspecclean.base_fsspecfs import FSpecFS
+
+from lib.fsspecclean.base_fsspecfs.base_fsspecfs import FSpecFS
+
 
 class CleanFs(FSpecFS):
     _read_csv = None

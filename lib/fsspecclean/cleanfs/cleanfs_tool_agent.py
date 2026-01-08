@@ -1,11 +1,10 @@
 from typing import Annotated, TypedDict, NotRequired
 
 from langchain.agents import create_agent
-from langchain_ollama import ChatOllama
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import add_messages
 
-from lib.fsspecclean.cleanfs_toolkit import CleanFSToolkit
+from lib.fsspecclean.cleanfs.cleanfs_toolkit import CleanFSToolkit
 
 
 SYSP = """

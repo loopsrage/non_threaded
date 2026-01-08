@@ -2,8 +2,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.constants import START, END
 from langgraph.graph import StateGraph
 
-from lib.fsspecclean.cleanfs_tool_agent import AgentRequestIdCsvData
-from lib.fsspecclean.validate_input_node import validate_node
+from lib.fsspecclean.cleanfs.cleanfs_tool_agent import AgentRequestIdCsvData
+from lib.fsspecclean.cleanfs.validate_input_node import validate_node
 
 
 def build_governed_graph(worker_agent):

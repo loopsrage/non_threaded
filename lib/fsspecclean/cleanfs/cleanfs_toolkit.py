@@ -7,7 +7,7 @@ from langchain_core.tools import BaseToolkit, tool
 from langgraph.prebuilt import InjectedState
 from pydantic import ConfigDict
 
-from lib.fsspecclean.cleanfs import CleanFs
+from lib.fsspecclean.cleanfs.cleanfs import CleanFs
 
 def _validate_request_id(tool_name: str, state: Annotated[dict, InjectedState]):
     request_id = state.get("request_id")
@@ -18,12 +18,7 @@ def _validate_request_id(tool_name: str, state: Annotated[dict, InjectedState]):
     return request_id
 
 def _validate_csv_data(tool_name: str, state: Annotated[dict, InjectedState]):
-    request_id = state.get("request_id")
-    if not request_id:
-        raise KeyError(
-            f"Execution halted: Tool '{tool_name}' requires 'request_id' in state. "
-        )
-
+    request_id = _validate_request_id(tool_name, state)
     csv_data = state.get("csv_data")
     if not csv_data:
         raise AttributeError(
@@ -90,7 +85,7 @@ class CleanFSToolkit(BaseToolkit):
                 df = pd.read_csv(io.StringIO(csv_data))
                 fn(request_id, df, use_pipe=True)
                 resp = f"Successfully saved clean file for {request_id}"
-                return resp, resp
+                return resp, True
             except Exception:
                 raise
 
@@ -103,7 +98,7 @@ class CleanFSToolkit(BaseToolkit):
                 df = pd.read_csv(io.StringIO(csv_data))
                 fn(request_id, df, use_pipe=True)
                 resp = f"Successfully saved raw file for {request_id}"
-                return resp, resp
+                return resp, True
             except Exception:
                 raise
 

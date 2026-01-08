@@ -1,4 +1,4 @@
-from lib.fsspecclean.cleanfs_tool_agent import AgentRequestIdCsvData
+from lib.fsspecclean.cleanfs.cleanfs_tool_agent import AgentRequestIdCsvData
 
 def validate_node(state: AgentRequestIdCsvData):
     request_id = state.get('request_id')

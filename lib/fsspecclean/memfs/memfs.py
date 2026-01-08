@@ -3,7 +3,7 @@ from typing import Any
 
 from fastapi import Request
 
-from lib.fsspecclean.base_fsspecfs import FSpecFS
+from lib.fsspecclean.base_fsspecfs.base_fsspecfs import FSpecFS
 
 def get_storage(request: Request) -> "FSpecFS":
     return request.app.state.storage
