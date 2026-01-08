@@ -9,6 +9,7 @@ from pandas.core.interchange.dataframe_protocol import DataFrame
 
 from lib.fsspecclean import FSpecFS
 
+
 def feature_mask(data, cvi=None, skew=None, riqr=None):
     if cvi is None:
         cvi = .3
@@ -62,10 +63,6 @@ def auto_extract_dates(data):
 
 def encode_png():
     pass
-    # img_buffer = io.BytesIO()
-    # fig.savefig(img_buffer, format='png')
-    # img_buffer.seek(0)
-    # img_str = base64.b64encode(img_buffer.getvalue()).decode("utf-8")
 
 async def clean_pipeline(input_df: DataFrame, storage: FSpecFS, request_id):
     def single_feature_pair_plot(data, feature, target):

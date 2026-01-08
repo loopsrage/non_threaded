@@ -9,6 +9,52 @@ from pydantic import ConfigDict
 
 from lib.fsspecclean import FSpecFS
 
+def _validate_request_id(tool_name: str, state: Annotated[dict, InjectedState]):
+    request_id = state.get("request_id")
+    if not request_id:
+        raise KeyError(
+            f"Execution halted: Tool '{tool_name}' requires 'request_id' in state. "
+        )
+    return request_id
+
+
+def _validate_csv_data(tool_name: str, state: Annotated[dict, InjectedState]):
+    request_id = state.get("request_id")
+    if not request_id:
+        raise KeyError(
+            f"Execution halted: Tool '{tool_name}' requires 'request_id' in state. "
+        )
+
+    csv_data = state.get("csv_data")
+    if not csv_data:
+        raise AttributeError(
+            f"Execution halted: Tool '{tool_name}' requires 'csv_data' in state. "
+            f"Request ID: {request_id}"
+        )
+    return request_id, csv_data
+
+
+def _retrieve(get_file, tool_name, state):
+    try:
+        request_id = _validate_request_id(tool_name, state)
+        df = get_file(request_id)
+
+        buffer = io.BytesIO()
+        df.to_csv(buffer, index=False, encoding='utf-8')
+        raw_bytes = buffer.getvalue()
+
+        artifact = {
+            "data": str(raw_bytes),
+            "type": "binary"
+        }
+
+        return df.to_csv(index=False), artifact
+    except AttributeError:
+        pass
+    except Exception:
+        raise
+
+
 class FSspecToolKit(BaseToolkit):
 
     fs: FSpecFS
@@ -19,86 +65,86 @@ class FSspecToolKit(BaseToolkit):
 
         # We wrap the methods in functions to use the @tool decorator
         @tool(response_format="content_and_artifact")
-        def get_clean_file(state: Annotated[dict, InjectedState] ) -> tuple[Any, dict[str, bytes]]:
+        def get_clean_file(state: Annotated[dict, InjectedState] ) -> tuple[str, tuple[Any, dict[str, str]] | None]:
             """Retrieve and read the cleaned CSV file for a specific request ID."""
-            df = self.fs.get_clean_file(state.get("request_id"))
-
-            buffer = io.BytesIO()
-            # index=False is usually preferred for clean data transfer
-            df.to_csv(buffer, index=False, encoding='utf-8')
-            raw_bytes = buffer.getvalue()
-
-            artifact = {
-                "raw_data": raw_bytes,
-                "type": "binary"
-            }
-
-            return df.to_csv(index=False), artifact
+            fn = self.fs.get_clean_file
+            try:
+                opres = _retrieve(fn, fn.__name__, state)
+                return str(opres), opres
+            except Exception:
+                raise
 
         @tool(response_format="content_and_artifact")
-        def get_raw_file(state: Annotated[dict, InjectedState]) -> tuple[Any, dict[Any, bytes]]:
+        def get_raw_file(state: Annotated[dict, InjectedState]) -> tuple[str, tuple[Any, dict[str, str]] | None]:
             """Retrieve and read the raw CSV file for a specific request ID."""
-            request_id = state.get("request_id")
-            df = self.fs.get_raw_file(request_id)
+            fn = self.fs.get_raw_file
+            try:
+                opres = _retrieve(fn, fn.__name__, state)
+                return str(opres), opres
+            except Exception:
+                raise
 
-            buffer = io.BytesIO()
-            # index=False is usually preferred for clean data transfer
-            df.to_csv(buffer, index=False, encoding='utf-8')
-            raw_bytes = buffer.getvalue()
-
-            artifact = {
-                "raw_data": raw_bytes,  # This is the 'data' you retrieve later
-                "type": "binary"
-            }
-
-            return df.to_csv(index=False), artifact
-
-        @tool(response_format="content")
+        @tool(response_format="content_and_artifact")
         def save_clean_file(state: Annotated[dict, InjectedState]):
             """Save cleaned data to the filesystem. Input must be a CSV-formatted string."""
-            request_id = state.get("request_id")
-            csv_data = state.get("csv_data")
+            fn = self.fs.save_clean_file
+            try:
+                request_id, csv_data = _validate_csv_data(fn.__name__, state)
+                df = pd.read_csv(io.StringIO(csv_data))
+                fn(request_id, df, use_pipe=True)
+                resp = f"Successfully saved clean file for {request_id}"
+                return resp, resp
+            except Exception:
+                raise
 
-            if not csv_data:
-                raise KeyError(
-                    f"Execution halted: Tool 'save_csv_files' requires 'csv_data' in state. "
-                    f"Request ID: {request_id}"
-                )
-
-            df = pd.read_csv(io.StringIO(csv_data))
-            self.fs.save_clean_file(request_id, df, use_pipe=True)
-            return f"Successfully saved clean file for {request_id}"
-
-        @tool(response_format="content")
+        @tool(response_format="content_and_artifact")
         def save_raw_file(state: Annotated[dict, InjectedState] ):
             """Saves files specifically requiring CSV formatting data."""
-            request_id = state.get("request_id")
-            csv_data = state.get("csv_data")
+            fn = self.fs.save_raw_file
+            try:
+                request_id, csv_data = _validate_csv_data(fn.__name__, state)
+                df = pd.read_csv(io.StringIO(csv_data))
+                fn(request_id, df, use_pipe=True)
+                resp = f"Successfully saved raw file for {request_id}"
+                return resp, resp
+            except Exception:
+                raise
 
-            if not csv_data:
-                raise KeyError(
-                    f"Execution halted: Tool 'save_csv_files' requires 'csv_data' in state. "
-                    f"Request ID: {request_id}"
-                )
-
-            df = pd.read_csv(io.StringIO(csv_data))
-            self.fs.save_raw_file(df, request_id, use_pipe=True)
-            return f"Successfully saved raw file for {request_id}"
-
-        @tool(response_format="content")
-        def list_raw_files(state: Annotated[dict, InjectedState] ) -> List[str]:
+        @tool(response_format="content_and_artifact")
+        def list_raw_files(state: Annotated[dict, InjectedState] ) -> tuple[str, list[Any]] | None:
             """List all raw files available for a given request ID."""
-            return list(self.fs.list_raw_files(state.get("request_id")))
+            fn = self.fs.list_raw_files
+            try:
+                opres = list(fn(_validate_request_id(fn.__name__, state)))
+                return str(opres), opres
+            except AttributeError:
+                pass
+            except KeyError:
+                raise
 
-        @tool(response_format="content")
-        def list_clean_files(state: Annotated[dict, InjectedState] ) -> List[str]:
+        @tool(response_format="content_and_artifact")
+        def list_clean_files(state: Annotated[dict, InjectedState] ) -> tuple[str, list[Any]] | None:
             """List all clean files available for a given request ID."""
-            return list(self.fs.list_clean_files(state.get("request_id")))
+            fn = self.fs.list_clean_files
+            try:
+                opres = list(fn(_validate_request_id(fn.__name__, state)))
+                return str(opres), opres
+            except AttributeError:
+                pass
+            except KeyError:
+                raise
 
-        @tool(response_format="content")
-        def list_images(state: Annotated[dict, InjectedState]) -> List[str]:
+        @tool(response_format="content_and_artifact")
+        def list_images(state: Annotated[dict, InjectedState]) -> tuple[str, list[Any]] | None:
             """List all PNG image paths in the images subdirectory for a request ID."""
-            return list(self.fs.list_images(state.get("request_id")))
+            fn = self.fs.list_images
+            try:
+                opres = list(fn(_validate_request_id(fn.__name__, state)))
+                return str(opres), opres
+            except AttributeError:
+                pass
+            except KeyError:
+                raise
 
         # Note: save_png_file is typically handled by a specialized node
         # because LLMs cannot pass an active 'figure' object directly.

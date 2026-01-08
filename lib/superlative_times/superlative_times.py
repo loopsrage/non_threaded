@@ -16,7 +16,6 @@ class SuperlativeTimes:
                 self.first = int(x.timestamp())
 
     def set_last_time(self, x: datetime.datetime) -> None:
-        with self._lock:
             if self.last is None or self.last > int(x.timestamp()) :
                 self.last = int(x.timestamp())
 

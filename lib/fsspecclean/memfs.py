@@ -5,6 +5,8 @@ from typing import Any
 import fsspec
 import pandas as pd
 from fastapi import Request
+from pandas import DataFrame
+
 
 def get_storage(request: Request) -> "FSpecFS":
     return request.app.state.storage
@@ -65,7 +67,7 @@ class FSpecFS:
         except Exception as write_err:
             raise ExceptionGroup("errors", [*errors, write_err])
 
-    def _write_df(self, file_path: str, df: pd.DataFrame, use_pipe=None):
+    def _write_df(self, file_path: str, df: DataFrame, use_pipe=None):
         file_buffer = io.BytesIO()
         df.to_csv(file_buffer, index=False, compression='gzip')
         self._write(file_path, file_buffer, use_pipe)
@@ -93,7 +95,7 @@ class FSpecFS:
         file_path = f"{self.file_path(request_id, self._clean_file_name)}"
         self._write_df(file_path, data, use_pipe)
 
-    def save_raw_file(self, data, request_id, use_pipe=None):
+    def save_raw_file(self, request_id, data, use_pipe=None):
         file_path = f"{self.file_path(request_id, self._raw_file_name)}"
         self._write_df(file_path, data, use_pipe)
 
