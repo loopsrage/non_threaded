@@ -7,7 +7,7 @@ from langchain_core.tools import BaseToolkit, tool
 from langgraph.prebuilt import InjectedState
 from pydantic import ConfigDict
 
-from lib.fsspecclean import FSpecFS
+from lib.fsspecclean.cleanfs import CleanFs
 
 def _validate_request_id(tool_name: str, state: Annotated[dict, InjectedState]):
     request_id = state.get("request_id")
@@ -16,7 +16,6 @@ def _validate_request_id(tool_name: str, state: Annotated[dict, InjectedState]):
             f"Execution halted: Tool '{tool_name}' requires 'request_id' in state. "
         )
     return request_id
-
 
 def _validate_csv_data(tool_name: str, state: Annotated[dict, InjectedState]):
     request_id = state.get("request_id")
@@ -32,7 +31,6 @@ def _validate_csv_data(tool_name: str, state: Annotated[dict, InjectedState]):
             f"Request ID: {request_id}"
         )
     return request_id, csv_data
-
 
 def _retrieve(get_file, tool_name, state):
     try:
@@ -54,10 +52,9 @@ def _retrieve(get_file, tool_name, state):
     except Exception:
         raise
 
+class CleanFSToolkit(BaseToolkit):
 
-class FSspecToolKit(BaseToolkit):
-
-    fs: FSpecFS
+    fs: CleanFs
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -134,22 +131,7 @@ class FSspecToolKit(BaseToolkit):
             except KeyError:
                 raise
 
-        @tool(response_format="content_and_artifact")
-        def list_images(state: Annotated[dict, InjectedState]) -> tuple[str, list[Any]] | None:
-            """List all PNG image paths in the images subdirectory for a request ID."""
-            fn = self.fs.list_images
-            try:
-                opres = list(fn(_validate_request_id(fn.__name__, state)))
-                return str(opres), opres
-            except AttributeError:
-                pass
-            except KeyError:
-                raise
-
-        # Note: save_png_file is typically handled by a specialized node
-        # because LLMs cannot pass an active 'figure' object directly.
-
         return [
             get_clean_file, get_raw_file, save_clean_file,
-            save_raw_file, list_raw_files, list_clean_files, list_images
+            save_raw_file, list_raw_files, list_clean_files
         ]

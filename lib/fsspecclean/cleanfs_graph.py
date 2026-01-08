@@ -2,7 +2,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.constants import START, END
 from langgraph.graph import StateGraph
 
-from lib.fsspecclean.memfs_tool_node import AgentRequestIdCsvData
+from lib.fsspecclean.cleanfs_tool_agent import AgentRequestIdCsvData
 from lib.fsspecclean.validate_input_node import validate_node
 
 

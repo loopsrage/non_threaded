@@ -5,7 +5,7 @@ from langchain_ollama import ChatOllama
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import add_messages
 
-from lib.fsspecclean.memfs_toolkit import FSspecToolKit
+from lib.fsspecclean.cleanfs_toolkit import CleanFSToolkit
 
 
 SYSP = """
@@ -30,7 +30,7 @@ class AgentRequestIdCsvData(TypedDict):
 def fs_react_agent(model, fs):
     return create_agent(
         model=model,
-        tools=FSspecToolKit(fs=fs).get_tools(),
+        tools=CleanFSToolkit(fs=fs).get_tools(),
         checkpointer=MemorySaver(),
         state_schema=AgentRequestIdCsvData,
         system_prompt=SYSP
