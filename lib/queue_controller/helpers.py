@@ -1,5 +1,7 @@
+import asyncio
 import logging
 import uuid
+from asyncio import TaskGroup
 from concurrent.futures import ThreadPoolExecutor, Future
 from typing import Callable, Union, Iterable
 
@@ -28,21 +30,20 @@ def link_pipeline(nodes: Iterable[QueueController]) -> None:
         current_node.set_next(next_node)
 
 
-def start_pipeline(executor: ThreadPoolExecutor, nodes: list[QueueController]) -> list[Future]:
-    return [executor.submit(node.queue_action) for node in nodes]
+def start_pipeline(tg: TaskGroup, nodes: list[QueueController]) -> list[asyncio.Task]:
+    return [tg.create_task(node.queue_action()) for node in nodes]
 
 def gather_results(futures: list[Future]):
     return [f.result() for f in futures]
 
-def stop_pipeline(nodes: list[QueueController]) -> None:
+async def stop_pipeline(nodes: list[QueueController]) -> None:
     for node in nodes:
-        node.close()
+        await node.close()
 
 def default_queue_action(queue_data: QueueData) -> None:
-    queue_data["attribute"] = 123
-    print(f"{queue_data["attrubute"]}")
+    pass
 
-def new_controller(identity: str = None, executor: ThreadPoolExecutor = None, action: Callable[[QueueData], Union[Exception, None]] = None, **kwargs) -> QueueController:
+def new_controller(identity: str = None, executor: ThreadPoolExecutor = None, action: Callable[[QueueData], asyncio.Future] = None, **kwargs) -> QueueController:
     if action is None:
         action = default_queue_action
 

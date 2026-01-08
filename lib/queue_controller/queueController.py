@@ -1,5 +1,5 @@
+import asyncio
 import logging
-import queue
 import threading
 import traceback
 from concurrent import futures
@@ -19,17 +19,15 @@ def handle_error(e: Exception) -> bool:
 
 class QueueController:
     _identity: str
-    _queue: queue.Queue = None
+    _queue: asyncio.Queue = None
     _broadcast: dict[str, 'QueueController']
 
-    _action: Callable[[QueueData], Union[Exception, None]]
+    _action: Callable[[QueueData], asyncio.Future]
     _next_queue_controller: Optional['QueueController'] = None
     _error_handler: Callable[[Exception], bool]
-    _lock: threading.Lock
-    _executor: futures.ThreadPoolExecutor
 
     def __init__(self, identity: str,
-                 action: Callable[[QueueData], Union[Exception, None]],
+                 action: Callable[[QueueData], asyncio.Future],
                  executor: futures.ThreadPoolExecutor = None,
                  max_queue_size: int = None,
                  error_handler: Callable[[Exception], bool] = None) -> None:
@@ -59,10 +57,9 @@ class QueueController:
             return self._identity
 
     @property
-    def queue(self) -> queue.Queue:
+    def queue(self) -> asyncio.Queue:
         if self._queue is None:
-            # queue.Queue must be created within the event loop
-            self._queue = queue.Queue(maxsize=self._max_queue_size)
+            self._queue = asyncio.Queue(maxsize=self._max_queue_size)
         return self._queue
 
     @property
@@ -76,24 +73,20 @@ class QueueController:
         with self._lock:
             self._broadcast = broadcast_to
 
-    def enqueue(self, queue_data: QueueData) -> None:
-        self.queue.put(queue_data)
+    async def enqueue(self, queue_data: QueueData) -> None:
+        await self.queue.put(queue_data)
 
-    def close(self) -> None:
-        self.queue.put(None)
-        self.queue.join()
-        self._executor.shutdown(wait=True)
+    async def close(self) -> None:
+        await self.queue.put(None)
+        await self.queue.join()
 
-    def broadcast(self, item) -> None:
-        with self._lock:
-            targets = self._broadcast.items()
+    async def broadcast(self, item) -> None:
+        for identity, target in self._broadcast.items():
+            await target.enqueue(item.copy_derivative(identity))
 
-        for identity, target in targets:
-            target.enqueue(item.copy_derivative(identity))
-
-    def queue_action(self) -> None:
+    async def queue_action(self) -> None:
         while True:
-            item: QueueData = self.queue.get()
+            item: QueueData = await self.queue.get()
             if item is None:
                 self.queue.task_done()
                 return
@@ -101,19 +94,23 @@ class QueueController:
             item.append_trace(self.identity)
 
             try:
-                future = self._executor.submit(self._action, item)
-                self.broadcast(item)
+                if asyncio.iscoroutinefunction(self._action):
+                    result = await self._action(item)
+                else:
+                    # Offload sync work to a thread so it doesn't block the loop
+                    result = await asyncio.to_thread(self._action, item)
 
-                result = future.result()
+                await self.broadcast(item)
+
                 if isinstance(result, Exception):
                     raise result
 
                 next_node = self.next_queue_controller
                 if next_node:
-                    next_node.enqueue(item)
+                    await next_node.enqueue(item)
             except Exception as e:
                 e.add_note(f"{item.trace()}")
-                e.add_note(f"{item.all_attributes()}")
+                e.add_note(f"{item.kwargs()}")
                 if not self._error_handler(e):
                     raise e
             finally:
