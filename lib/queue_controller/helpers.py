@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 import uuid
 from asyncio import TaskGroup
 from concurrent.futures import ThreadPoolExecutor, Future
@@ -41,7 +42,11 @@ async def stop_pipeline(nodes: list[QueueController]) -> None:
         await node.close()
 
 def default_queue_action(queue_data: QueueData) -> None:
-    pass
+    total = 0
+    for i in range(1, 900):
+        total += i * 2
+        if total % 1000 == 0:
+            pass
 
 def new_controller(identity: str = None, executor: ThreadPoolExecutor = None, action: Callable[[QueueData], asyncio.Future] = None, **kwargs) -> QueueController:
     if action is None:

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import threading
 import traceback
 from concurrent import futures
 from typing import Optional, Callable, Union
@@ -41,7 +40,6 @@ class QueueController:
 
         self._max_queue_size = max_queue_size
         self._identity = identity
-        self._lock = threading.Lock()
         self._action = action
         self._broadcast = {}
 
@@ -51,10 +49,9 @@ class QueueController:
 
     @property
     def identity(self):
-        with self._lock:
-            if self._identity is None:
-                return ""
-            return self._identity
+        if self._identity is None:
+            return ""
+        return self._identity
 
     @property
     def queue(self) -> asyncio.Queue:
@@ -70,8 +67,7 @@ class QueueController:
         self._next_queue_controller = next_queue_controller
 
     def set_broadcast(self, broadcast_to: dict[str, 'QueueController']) -> None:
-        with self._lock:
-            self._broadcast = broadcast_to
+        self._broadcast = broadcast_to
 
     async def enqueue(self, queue_data: QueueData) -> None:
         await self.queue.put(queue_data)
